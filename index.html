@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simple Chat App</title>
+  <title>Chatterly - Login & Chat</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <style>
     body {
@@ -17,18 +17,16 @@
       height: 100vh;
     }
 
-    .chat-container {
+    .container {
       width: 400px;
-      max-width: 90%;
+      max-width: 95%;
       background: #fff;
       border-radius: 10px;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      display: flex;
-      flex-direction: column;
       overflow: hidden;
     }
 
-    .chat-header {
+    .header {
       background: #0b1225;
       color: white;
       padding: 15px;
@@ -37,10 +35,39 @@
       font-size: 18px;
     }
 
+    .form, .chat {
+      padding: 15px;
+      display: none;
+      flex-direction: column;
+    }
+
+    .form input {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      width: 100%;
+    }
+
+    .form button {
+      background: #0b1225;
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
     .chat-messages {
       flex: 1;
-      padding: 15px;
+      height: 300px;
       overflow-y: auto;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
       background: #e9ecef;
     }
 
@@ -66,78 +93,163 @@
 
     .chat-input {
       display: flex;
-      padding: 10px;
-      border-top: 1px solid #ccc;
-      background: #f8f9fa;
     }
 
     .chat-input input {
       flex: 1;
       padding: 10px;
-      border: 1px solid #ccc;
       border-radius: 20px;
+      border: 1px solid #ccc;
       outline: none;
-      font-size: 16px;
     }
 
     .chat-input button {
       background: #0b1225;
-      border: none;
       color: white;
-      padding: 10px 15px;
+      border: none;
       margin-left: 10px;
       border-radius: 50%;
       cursor: pointer;
       font-size: 16px;
-    }
-
-    .chat-input button:hover {
-      background: #1a233b;
+      padding: 10px 12px;
     }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-header">Chat App</div>
-    <div class="chat-messages" id="chatMessages">
-      <!-- messages appear here -->
-    </div>
-    <div class="chat-input">
-      <input type="text" id="messageInput" placeholder="Type your message...">
-      <button id="sendBtn"><i class="fa fa-paper-plane"></i></button>
-    </div>
+
+<div class="container">
+  <div class="header">Chatterly</div>
+
+  <!-- Login Form -->
+  <div class="form" id="loginForm">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+    <button id="signupBtn" style="margin-top:5px;">Sign Up</button>
+    <p id="loginMessage" style="color:red;"></p>
   </div>
 
-  <script>
-    const sendBtn = document.getElementById('sendBtn');
-    const messageInput = document.getElementById('messageInput');
-    const chatMessages = document.getElementById('chatMessages');
+  <!-- Chat Window -->
+  <div class="chat" id="chatWindow">
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="messageInput" placeholder="Type a message...">
+      <button id="sendBtn"><i class="fa fa-paper-plane"></i></button>
+    </div>
+    <button id="logoutBtn" style="margin-top:10px; background:red;">Logout</button>
+  </div>
+</div>
 
-    function addMessage(text, type) {
-      const msgDiv = document.createElement('div');
-      msgDiv.classList.add('message', type);
-      msgDiv.innerText = text;
-      chatMessages.appendChild(msgDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<script>
+  // Firebase config (replace with your own)
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  const loginForm = document.getElementById('loginForm');
+  const chatWindow = document.getElementById('chatWindow');
+  const loginBtn = document.getElementById('loginBtn');
+  const signupBtn = document.getElementById('signupBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const loginMessage = document.getElementById('loginMessage');
+
+  const sendBtn = document.getElementById('sendBtn');
+  const messageInput = document.getElementById('messageInput');
+  const chatMessages = document.getElementById('chatMessages');
+
+  // Show login form by default
+  loginForm.style.display = 'flex';
+
+  // Sign Up
+  signupBtn.addEventListener('click', () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(() => {
+        loginMessage.style.color = 'green';
+        loginMessage.innerText = "Account created! Please log in.";
+      })
+      .catch(err => loginMessage.innerText = err.message);
+  });
+
+  // Login
+  loginBtn.addEventListener('click', () => {
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(err => loginMessage.innerText = err.message);
+  });
+
+  // Logout
+  logoutBtn.addEventListener('click', () => {
+    auth.signOut();
+  });
+
+  // Auth state listener
+  auth.onAuthStateChanged(user => {
+    if(user) {
+      loginForm.style.display = 'none';
+      chatWindow.style.display = 'flex';
+      loadMessages();
+    } else {
+      loginForm.style.display = 'flex';
+      chatWindow.style.display = 'none';
+      chatMessages.innerHTML = '';
     }
+  });
 
-    sendBtn.addEventListener('click', () => {
-      const message = messageInput.value.trim();
-      if(message !== '') {
-        addMessage(message, 'sent');
-        messageInput.value = '';
-        // Fake bot response
-        setTimeout(() => {
-          addMessage("You said: " + message, 'received');
-        }, 800);
-      }
-    });
+  // Send message
+  sendBtn.addEventListener('click', () => {
+    const message = messageInput.value.trim();
+    const user = auth.currentUser;
+    if(message && user) {
+      const msgData = {
+        text: message,
+        uid: user.uid,
+        email: user.email,
+        timestamp: Date.now()
+      };
+      db.ref('messages').push(msgData);
+      messageInput.value = '';
+    }
+  });
 
-    messageInput.addEventListener('keypress', (e) => {
-      if(e.key === 'Enter') {
-        sendBtn.click();
-      }
+  messageInput.addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') sendBtn.click();
+  });
+
+  // Load messages
+  function loadMessages() {
+    db.ref('messages').on('value', snapshot => {
+      chatMessages.innerHTML = '';
+      snapshot.forEach(msg => {
+        const data = msg.val();
+        const div = document.createElement('div');
+        div.classList.add('message');
+        div.classList.add(data.uid === auth.currentUser.uid ? 'sent' : 'received');
+        div.innerText = `${data.email.split('@')[0]}: ${data.text}`;
+        chatMessages.appendChild(div);
+      });
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     });
-  </script>
+  }
+</script>
 </body>
 </html>
